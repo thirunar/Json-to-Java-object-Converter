@@ -1,48 +1,70 @@
 import com.astav.jsontojava.Generator;
 import com.google.gson.Gson;
+import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.UUID;
 
 public class JsonPojoConverter {
     private String className;
 
-    public JsonPojoConverter(String packageName, String className) {
-        this.packageName = packageName;
-        this.className = className;
-    }
-
     private String packageName;
 
-    public void makeJsonObject(String json) throws Exception {
-        File file = new File("output");
+    public JsonPojoConverter(String packageName, String className) {
+        this.className = className;
+        this.packageName = packageName;// + this.uuidString;
+    }
+
+    public void makeJsonObject(String generatedPackageName, String json, int pid) throws Exception {
+        File file = new File("output/");
 
         //convert the file to URL format
         URL url = file.toURI().toURL();
         URL[] urls = new URL[]{url};
-        synchronized (this) {
-            ClassLoader defaultClassLoader = Thread.currentThread().getContextClassLoader();
 
-            //load this folder into Class loader
-            ClassLoader cl = new ChildURLClassLoader(urls);
+        System.out.println("Entering Sync block.." + pid);
+        ClassLoader defaultClassLoader = Thread.currentThread().getContextClassLoader();
 
-            Thread.currentThread().setContextClassLoader(cl);
-            Class cls = cl.loadClass(packageName + "." + className);
-            Object o = new Gson().fromJson(json, cls);
+        //load this folder into Class loader
+        ClassLoader cl = new ChildURLClassLoader(urls);
 
-            Method method = cls.getClass().getMethod("toString", null);
-            System.out.println(method.invoke(cls, null));
+        Thread.currentThread().setContextClassLoader(cl);
+        Class cls = cl.loadClass(generatedPackageName + "." + className);
+        Object o = new Gson().fromJson(json, cls);
 
-            Thread.currentThread().setContextClassLoader(defaultClassLoader);
+        Method method = cls.getClass().getMethod("toString", null);
+        System.out.println(method.invoke(cls, null));
+
+        Thread.currentThread().setContextClassLoader(defaultClassLoader);
+        System.out.println("Exiting Sync block.." + pid);
+
+    }
+
+    public String generatePojo(String jsonString) {
+        String uuidString = UUID.randomUUID().toString().replace("-", "");
+        String generatedPackageName = this.packageName + uuidString;
+        Generator generator = null;
+        try {
+            generator = new Generator("output", generatedPackageName, null, null);
+            generator.generateClasses(className, jsonString);
+        } catch (Exception e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
+        return generatedPackageName;
+    }
+
+    public void cleanup(String packageName) {
+        File outputDirectory = new File("output/" + packageName.replace(".", "/"));
+        if(outputDirectory.exists()) {
+            try {
+                FileUtils.forceDelete(outputDirectory);
+            } catch (IOException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            }
         }
     }
-
-    public void generatePojo(String jsonString) throws IOException, ClassNotFoundException {
-        Generator generator = new Generator("output", packageName, null, null);
-        generator.generateClasses(className, jsonString);
-    }
-
 }
 

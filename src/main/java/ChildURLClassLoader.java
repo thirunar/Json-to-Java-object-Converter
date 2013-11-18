@@ -15,4 +15,10 @@ public class ChildURLClassLoader extends URLClassLoader {
     public ChildURLClassLoader(URL[] urls, ClassLoader parent, URLStreamHandlerFactory factory) {
         super(urls, parent, factory);
     }
+
+    @Override
+    public Class<?> loadClass(String name) throws ClassNotFoundException {
+        System.out.println("Child class loader kicked in");
+        return super.loadClass(name);
+    }
 }
